@@ -69,6 +69,13 @@ export async function handleMessage(message, env) {
     return sendMessage(env, chatId, "Unknown command. Send /help for available options.");
   }
 
+  if (/^[A-Z0-9]{8,30}$/i.test(text)) {
+    const pending = await env.DB.prepare(
+      "SELECT id FROM payments WHERE telegram_id=? AND status='awaiting_payment' ORDER BY id DESC LIMIT 1"
+    ).bind(userId).first();
+    if (pending) return submitManualUtr(env, userId, String(pending.id), text, chatId);
+  }
+
   if (text === "🎲 Random Video") return deliverRandom(env, chatId, userId);
   if (text === "👑 My Subscription") return showSubscription(env, chatId, userId);
   if (text === "🎁 Trial Videos") return deliverTrial(env, chatId, userId);
@@ -166,8 +173,8 @@ async function startPurchase(env, chatId, userId, planId) {
       "UPI ID: " + request.upiId + "\n" +
       "Payee: " + request.payeeName + "\n\n" +
       "Payment request ID: #" + request.id + "\n\n" +
-      "After paying the exact amount, send your UTR like this:\n" +
-      "/utr " + request.id + " YOUR_UTR_NUMBER\n\n" +
+      "After paying the exact amount, simply send your UTR number in this chat.\n" +
+      "Or use: /utr " + request.id + " YOUR_UTR_NUMBER\n\n" +
       "Your subscription stays pending until the administrator verifies the payment in the receiving bank account. Do not send your UPI PIN or OTP to anyone.");
   } catch (error) {
     console.error("Could not create manual UPI request:", error);
