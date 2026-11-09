@@ -1,4 +1,4 @@
--- Manual UPI verification fields. Existing Razorpay rows remain intact.
+-- Manual UPI verification fields. Existing payment records remain intact.
 ALTER TABLE payments ADD COLUMN utr TEXT;
 ALTER TABLE payments ADD COLUMN reviewed_by TEXT;
 ALTER TABLE payments ADD COLUMN reviewed_at TEXT;
