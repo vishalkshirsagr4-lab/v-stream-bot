@@ -42,6 +42,9 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
       "/removevideo ID – remove a video from the bot catalogue\n" +
       "/grant USER_ID DAYS [PLAN_NAME] – grant complimentary access\n" +
       "/checkchannel – check bot channel permissions\n" +
+      "/pendingpayments – list submitted UTRs\n" +
+      "/approvepayment ID – approve after bank verification\n" +
+      "/rejectpayment ID [REASON] – reject a request\n" +
       "/myid – show your Telegram ID");
     return true;
   }
