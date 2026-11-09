@@ -9,6 +9,14 @@ function constantTimeEqual(a, b) {
 }
 
 async function dispatchUpdate(update, env) {
+  const message = update.message || update.channel_post;
+  console.log("Telegram update received:", {
+    type: update.channel_post ? "channel_post" : update.message ? "message" : update.callback_query ? "callback_query" : "unknown",
+    chatType: message && message.chat ? message.chat.type : null,
+    hasFrom: Boolean(message && message.from),
+    hasText: Boolean(message && typeof message.text === "string")
+  });
+
   if (update.channel_post) {
     await handleChannelPost(update.channel_post, env);
   } else if (update.message) {
