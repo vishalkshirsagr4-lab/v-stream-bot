@@ -1,0 +1,9 @@
+# Copy to .dev.vars for local development; never commit real values.
+BOT_TOKEN = "123456:REPLACE_ME"
+BOT_WEBHOOK_SECRET = "generate-a-long-random-telegram-secret"
+ADMIN_IDS = "123456789"
+CHANNEL_ID = "-1001234567890"
+CHANNEL_URL = "https://t.me/YOUR_CHANNEL"
+RAZORPAY_KEY_ID = "rzp_test_REPLACE"
+RAZORPAY_KEY_SECRET = "REPLACE"
+RAZORPAY_WEBHOOK_SECRET = "REPLACE"

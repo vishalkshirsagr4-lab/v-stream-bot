@@ -1,0 +1,22 @@
+name = "v-stream-bot"
+main = "src/index.js"
+compatibility_date = "2026-11-01"
+workers_dev = true
+
+[vars]
+BOT_USERNAME = "YOUR_BOT_USERNAME"
+DEVELOPER_USERNAME = "@YOUR_USERNAME"
+TRIAL_VIDEO_LIMIT = "5"
+CURRENCY = "INR"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "vstream-db"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[triggers]
+crons = ["* * * * *"]
+
+[observability]
+enabled = true
