@@ -4,17 +4,17 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 
 [vars]
-BOT_USERNAME = "YOUR_BOT_USERNAME"
-DEVELOPER_USERNAME = "@YOUR_USERNAME"
-DEVELOPER_ID = "YOUR_TELEGRAM_USER_ID"
-UPI_PAYEE_NAME = "PAYMENT_ACCOUNT_HOLDER"
+BOT_USERNAME = "RelaxVideoStream_bot"
+DEVELOPER_USERNAME = "@BillieElisha_8660"
+DEVELOPER_ID = "8428995007"
+UPI_PAYEE_NAME = "SET_WITH_GUARDIAN_ACCOUNT_HOLDER_NAME"
 TRIAL_VIDEO_LIMIT = "5"
 CURRENCY = "INR"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "vstream-db"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "2553ed39-ba0e-45b1-a363-14372ddab145"
 migrations_dir = "migrations"
 
 [triggers]
