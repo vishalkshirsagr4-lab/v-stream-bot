@@ -17,13 +17,19 @@ function trialLimit(env) {
   return Number.isInteger(n) && n > 0 && n <= 20 ? n : 5;
 }
 
-function welcomeMarkup() {
-  return {
-    inline_keyboard: [
-      [{ text: "❓ Help", callback_data: "help" }, { text: "🎁 Trial – 5 Videos", callback_data: "trial" }],
-      [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }]
-    ]
-  };
+function welcomeMarkup(env) {
+  const username = String(env.DEVELOPER_USERNAME || "").trim().replace(/^@/, "");
+  const keyboard = [
+    [{ text: "🎁 Start Free Trial", callback_data: "trial" }],
+    [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }],
+    [{ text: "❓ Help", callback_data: "help" }]
+  ];
+
+  if (username) {
+    keyboard.push([{ text: "👨‍💻 Contact Developer", url: "https://t.me/" + encodeURIComponent(username) }]);
+  }
+
+  return { inline_keyboard: keyboard };
 }
 
 function replyKeyboard() {
@@ -41,11 +47,18 @@ function replyKeyboard() {
 async function sendWelcome(env, chatId) {
   const developerId = env.DEVELOPER_ID || "Not configured";
   const developerUsername = env.DEVELOPER_USERNAME || "";
-  const developerLine = "Developer ID: " + developerId + (developerUsername ? " (" + developerUsername + ")" : "");
-  await sendMessage(env, chatId,
-    "👋 Welcome to V-Stream! 🎬\n\nBrowse our video collection with a five-video trial or choose a subscription.\n\n" + developerLine,
-    { reply_markup: welcomeMarkup() });
-  await sendMessage(env, chatId, "Choose an option from the menu below.", { reply_markup: replyKeyboard() });
+  const developerLine = "👨‍💻 Developer: " + (developerUsername || "V-Stream Team") +
+    "\n🆔 Developer ID: " + developerId;
+
+  return sendMessage(env, chatId,
+    "🎬 Welcome to V-Stream!\n\n" +
+    "Your place to discover and stream videos.\n" +
+    "🎁 Enjoy up to 5 free trial videos, or explore a subscription plan.\n\n" +
+    "━━━━━━━━━━━━━━━━━━\n" +
+    developerLine + "\n" +
+    "━━━━━━━━━━━━━━━━━━\n\n" +
+    "Choose an option to get started 👇",
+    { reply_markup: welcomeMarkup(env) });
 }
 
 export async function handleMessage(message, env) {
