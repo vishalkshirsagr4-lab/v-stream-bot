@@ -4,13 +4,16 @@ import { createManualPaymentRequest, submitManualUtr } from "./payments.js";
 import { handleAdminCommand, handleAdminMessage, setChatCommands, isAdmin } from "./admin.js";
 
 const HELP_TEXT =
-  "🎬 V-Stream Help\n\n" +
-  "🎁 Trial – receive up to five free videos.\n" +
-  "🎲 Random Video – available with an active subscription.\n" +
-  "💳 Subscription – view available plans.\n" +
-  "🧾 UPI payment – send your UTR using /utr REQUEST_ID UTR_NUMBER.\n" +
-  "👑 My Subscription – check your expiry date.\n\n" +
-  "Use the buttons below to continue.";
+  "🎬 V-Stream — Member Commands\n\n" +
+  "/start — Open the welcome menu\n" +
+  "/help — Show this help\n" +
+  "/commands — Show available member commands\n" +
+  "/utr REQUEST_ID UTR_NUMBER — Submit your UPI reference\n\n" +
+  "🎁 Use Trial Videos for up to five free videos.\n" +
+  "💳 Use Subscription to view available plans.\n" +
+  "🎲 Random Video is available with an active subscription.\n" +
+  "👑 My Subscription shows your current plan and expiry.\n\n" +
+  "Administrator commands are not shown to members.";
 
 function trialLimit(env) {
   const n = Number(env.TRIAL_VIDEO_LIMIT || 5);
