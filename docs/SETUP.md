@@ -12,6 +12,7 @@ Only publish videos you own or have permission to distribute. Keep the channel's
 4. Get the channel's numeric ID (usually begins with -100).
 5. Send /myid to your bot to obtain your numeric Telegram user ID.
 6. Add the bot owner ID to the Worker secret ADMIN_IDS.
+7. Set DEVELOPER_ID in wrangler.toml to the numeric developer ID shown in the greeting.
 
 The bot indexes new video posts after the webhook is connected. To import older videos, repost them to the channel after setup. Telegram bots do not automatically receive the channel's old history.
 
@@ -49,7 +50,7 @@ npx wrangler secret put RAZORPAY_WEBHOOK_SECRET
 
 ADMIN_IDS accepts comma-separated numeric Telegram user IDs. The bot fails closed for admin commands if this secret is missing.
 
-Set DEVELOPER_USERNAME and BOT_USERNAME in wrangler.toml [vars]. Set CHANNEL_URL there too if you want to add it to the welcome message later. Never place API tokens or payment secrets in [vars], GitHub files, screenshots or public messages.
+Set DEVELOPER_ID, DEVELOPER_USERNAME and BOT_USERNAME in wrangler.toml [vars]. Never place API tokens or payment secrets in [vars], GitHub files, screenshots or public messages.
 
 Generate BOT_WEBHOOK_SECRET as a long random string using only A-Z, a-z, 0-9, underscore and hyphen.
 
