@@ -331,14 +331,20 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
       const channel = await telegramCall(env, "getChat", { chat_id: env.CHANNEL_ID });
       const me = await telegramCall(env, "getMe", {});
       const member = await telegramCall(env, "getChatMember", { chat_id: env.CHANNEL_ID, user_id: me.id });
-      const canPost = member.status === "administrator" && member.can_post_messages !== false;
+      const isChannelAdmin = member.status === "creator" || member.status === "administrator";
+      const canPost = isChannelAdmin && (member.status === "creator" || member.can_post_messages !== false);
       await sendMessage(env, chatId,
-        "Channel: " + (channel.title || channel.id) + "\nBot status: " + member.status +
-        "\nChannel post access: " + (canPost ? "available" : "check admin permissions") +
+        "Channel: " + (channel.title || channel.id) + "\nChannel ID: " + channel.id +
+        "\nBot status: " + member.status +
+        "\nChannel admin access: " + (isChannelAdmin ? "yes" : "no") +
+        "\nPost permission: " + (canPost ? "available" : "not available") +
         "\nIndexed videos: " + (await env.DB.prepare("SELECT COUNT(*) AS n FROM videos").first()).n);
     } catch (error) {
       console.error("Channel check failed:", error);
-      await sendMessage(env, chatId, "Could not verify channel. Check CHANNEL_ID and make sure the bot is an administrator.");
+      const detail = String(error && error.message ? error.message : error).slice(0, 350);
+      await sendMessage(env, chatId,
+        "Channel verification failed. Telegram says: " + detail +
+        "\n\nCheck that CHANNEL_ID is the channel's numeric ID (often starts with -100), and that this bot is a channel administrator.");
     }
     return true;
   }
