@@ -51,9 +51,13 @@ export async function submitManualUtr(env, telegramId, requestIdText, utrText, c
     throw error;
   }
 
-  await sendMessage(env, chatId,
-    "🧾 UTR received for payment request #" + requestId +
-    ". Your subscription is pending admin verification. It will activate only after the payment is confirmed in the receiving account.");
+  try {
+    await sendMessage(env, chatId,
+      "🧾 UTR received for payment request #" + requestId +
+      ". Your subscription is pending admin verification. It will activate only after the payment is confirmed in the receiving account.");
+  } catch (error) {
+    console.error("Could not acknowledge UTR submission to buyer:", error);
+  }
 
   const admins = (env.ADMIN_IDS || "").split(",").map(x => x.trim()).filter(x => /^\d+$/.test(x));
   for (const adminId of admins) {
