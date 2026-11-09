@@ -62,7 +62,7 @@ async function sendWelcome(env, chatId) {
   if (saved && saved.media_file_id) {
     const method = saved.media_type === "photo" ? "sendPhoto" : saved.media_type === "animation" ? "sendAnimation" : "sendVideo";
     const field = saved.media_type === "photo" ? "photo" : saved.media_type === "animation" ? "animation" : "video";
-    const payload = { chat_id: chatId, [field]: saved.media_file_id };
+    const payload = { chat_id: chatId, [field]: saved.media_file_id, protect_content: true };
     if (welcomeText.length <= 1024) {
       payload.caption = welcomeText;
       payload.reply_markup = markup.reply_markup;
@@ -148,15 +148,27 @@ export async function handleChannelPost(message, env) {
   ).bind(media.file_id, media.file_unique_id || null, message.caption || "", message.message_id).run();
 }
 
+
+async function deliverProtectedVideo(env, chatId, userId, video) {
+  const sent = await sendVideo(env, chatId, video.file_id, video.caption || "", true);
+  await env.DB.prepare(
+    "INSERT OR IGNORE INTO user_video_history(telegram_id, video_id, sent_at) VALUES (?, ?, datetime('now'))"
+  ).bind(String(userId), video.id).run();
+  await env.DB.prepare(
+    "INSERT INTO scheduled_message_deletions(chat_id, message_id, delete_at) VALUES (?, ?, datetime('now', '+2 hours'))"
+  ).bind(String(chatId), sent.message_id).run();
+  return sent;
+}
+
 async function deliverTrial(env, chatId, userId) {
-  const video = await getRandomVideo(env.DB);
+  const video = await getRandomVideo(env.DB, userId);
   if (!video) return sendMessage(env, chatId, "No videos are available yet. Please try again later.");
   const reserved = await env.DB.prepare(
     "UPDATE users SET trial_remaining=trial_remaining-1 WHERE telegram_id=? AND trial_remaining>0 AND is_blocked=0 RETURNING trial_remaining"
   ).bind(userId).first();
   if (!reserved) return sendMessage(env, chatId, "Your five-video trial has been used. Choose a subscription to continue.");
   try {
-    await sendVideo(env, chatId, video.file_id, video.caption || "");
+    await deliverProtectedVideo(env, chatId, userId, video);
     await sendMessage(env, chatId, "🎁 Trial video sent. " + reserved.trial_remaining + " trial video(s) remaining.");
   } catch (error) {
     await env.DB.prepare("UPDATE users SET trial_remaining=trial_remaining+1 WHERE telegram_id=?")
@@ -172,9 +184,9 @@ async function deliverRandom(env, chatId, userId) {
       "🔒 Random videos require an active subscription. You can still use any remaining trial videos.",
       { reply_markup: replyKeyboard() });
   }
-  const video = await getRandomVideo(env.DB);
+  const video = await getRandomVideo(env.DB, userId);
   if (!video) return sendMessage(env, chatId, "No videos are available yet. Please try again later.");
-  return sendVideo(env, chatId, video.file_id, video.caption || "");
+  return deliverProtectedVideo(env, chatId, userId, video);
 }
 
 async function showSubscription(env, chatId, userId) {
@@ -200,6 +212,17 @@ async function showPlans(env, chatId) {
 async function startPurchase(env, chatId, userId, planId) {
   try {
     const request = await createManualPaymentRequest(env, userId, planId);
+    const amount = (request.plan.amount_paise / 100).toFixed(2);
+    const upiUri = "upi://pay?pa=" + encodeURIComponent(request.upiId) +
+      "&pn=" + encodeURIComponent(request.payeeName) +
+      "&am=" + encodeURIComponent(amount) + "&cu=INR&tn=" + encodeURIComponent("V-Stream request #" + request.id);
+    const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=12&data=" + encodeURIComponent(upiUri);
+    await telegramCall(env, "sendPhoto", {
+      chat_id: chatId, photo: qrUrl, protect_content: true,
+      caption: "📲 Scan this QR in your UPI app. Verify the payee and exact amount before paying.\n\nPlan: " + request.plan.name +
+        "\nAmount: ₹" + amount + "\nUPI ID: " + request.upiId + "\nPayee: " + request.payeeName +
+        "\nRequest: #" + request.id
+    });
     return sendMessage(env, chatId,
       "💳 UPI payment instructions\n\n" +
       "Plan: " + request.plan.name + "\n" +
