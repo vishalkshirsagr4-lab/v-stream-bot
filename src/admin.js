@@ -1,4 +1,5 @@
 import { sendMessage, telegramCall } from "./telegram-api.js";
+import { handleManualPaymentAdminCommand } from "./manual-payment-admin.js";
 
 export function isAdmin(userId, env) {
   return (env.ADMIN_IDS || "").split(",").map(function (id) { return id.trim(); })
@@ -13,6 +14,8 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
     await sendMessage(env, chatId, "Your Telegram user ID: " + userId);
     return true;
   }
+
+  if (await handleManualPaymentAdminCommand(message, env, command, args, rawText)) return true;
 
   const adminCommands = [
     "/stats", "/broadcast", "/send", "/ban", "/unban", "/addplan",
