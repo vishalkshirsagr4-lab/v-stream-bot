@@ -1,6 +1,6 @@
 import { sendMessage, sendVideo, answerCallbackQuery } from "./telegram-api.js";
 import { upsertUser, getUser, getActiveSubscription, listPlans, getRandomVideo } from "./db.js";
-import { createPaymentLink } from "./payments.js";
+import { createManualPaymentRequest, submitManualUtr } from "./payments.js";
 import { handleAdminCommand } from "./admin.js";
 
 const HELP_TEXT =
@@ -8,6 +8,7 @@ const HELP_TEXT =
   "🎁 Trial – receive up to five free videos.\n" +
   "🎲 Random Video – available with an active subscription.\n" +
   "💳 Subscription – view available plans.\n" +
+  "🧾 UPI payment – send your UTR using /utr REQUEST_ID UTR_NUMBER.\n" +
   "👑 My Subscription – check your expiry date.\n\n" +
   "Use the buttons below to continue.";
 
@@ -63,6 +64,7 @@ export async function handleMessage(message, env) {
     const args = parts.slice(1);
     if (command === "/start") return sendWelcome(env, chatId);
     if (command === "/help") return sendMessage(env, chatId, HELP_TEXT, { reply_markup: replyKeyboard() });
+    if (command === "/utr") return submitManualUtr(env, userId, args[0], args[1], chatId);
     if (await handleAdminCommand(message, env, command, args, text)) return;
     return sendMessage(env, chatId, "Unknown command. Send /help for available options.");
   }
@@ -156,12 +158,20 @@ async function showPlans(env, chatId) {
 
 async function startPurchase(env, chatId, userId, planId) {
   try {
-    const link = await createPaymentLink(env, userId, planId);
+    const request = await createManualPaymentRequest(env, userId, planId);
     return sendMessage(env, chatId,
-      "Your secure payment link is ready:\n" + link.short_url +
-      "\n\nYour subscription activates after the payment provider verifies the payment.");
+      "💳 UPI payment instructions\n\n" +
+      "Plan: " + request.plan.name + "\n" +
+      "Amount: ₹" + (request.plan.amount_paise / 100).toFixed(2) + "\n" +
+      "UPI ID: " + request.upiId + "\n" +
+      "Payee: " + request.payeeName + "\n\n" +
+      "Payment request ID: #" + request.id + "\n\n" +
+      "After paying the exact amount, send your UTR like this:\n" +
+      "/utr " + request.id + " YOUR_UTR_NUMBER\n\n" +
+      "Your subscription stays pending until the administrator verifies the payment in the receiving bank account. Do not send your UPI PIN or OTP to anyone.");
   } catch (error) {
-    console.error("Could not create payment link:", error);
-    return sendMessage(env, chatId, "Payments are temporarily unavailable. Please contact the administrator.");
+    console.error("Could not create manual UPI request:", error);
+    return sendMessage(env, chatId,
+      "UPI payments are not configured yet. Please contact the administrator.");
   }
 }
