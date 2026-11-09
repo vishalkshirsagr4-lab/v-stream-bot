@@ -1,5 +1,6 @@
 import { handleMessage, handleCallback, handleChannelPost } from "./telegram.js";
 import { processBroadcasts } from "./broadcast.js";
+import { processExpiredVideoMessages } from "./video-cleanup.js";
 
 function constantTimeEqual(a, b) {
   if (typeof a !== "string" || typeof b !== "string" || a.length !== b.length) return false;
@@ -59,6 +60,6 @@ export default {
   },
 
   async scheduled(controller, env, ctx) {
-    ctx.waitUntil(processBroadcasts(env));
+    ctx.waitUntil(Promise.all([processBroadcasts(env), processExpiredVideoMessages(env)]));
   }
 };
