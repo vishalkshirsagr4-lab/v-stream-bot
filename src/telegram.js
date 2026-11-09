@@ -38,9 +38,11 @@ function replyKeyboard() {
 }
 
 async function sendWelcome(env, chatId) {
-  const developer = env.DEVELOPER_USERNAME || "Not configured";
+  const developerId = env.DEVELOPER_ID || "Not configured";
+  const developerUsername = env.DEVELOPER_USERNAME || "";
+  const developerLine = "Developer ID: " + developerId + (developerUsername ? " (" + developerUsername + ")" : "");
   await sendMessage(env, chatId,
-    "👋 Welcome to V-Stream! 🎬\n\nBrowse our video collection with a five-video trial or choose a subscription.\n\nDeveloper: " + developer,
+    "👋 Welcome to V-Stream! 🎬\n\nBrowse our video collection with a five-video trial or choose a subscription.\n\n" + developerLine,
     { reply_markup: welcomeMarkup() });
   await sendMessage(env, chatId, "Choose an option from the menu below.", { reply_markup: replyKeyboard() });
 }
