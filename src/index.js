@@ -1,5 +1,4 @@
 import { handleMessage, handleCallback, handleChannelPost } from "./telegram.js";
-import { handleRazorpayWebhook } from "./payments.js";
 import { processBroadcasts } from "./broadcast.js";
 
 function constantTimeEqual(a, b) {
@@ -46,10 +45,6 @@ export default {
         console.error("Telegram update processing failed:", error && error.stack ? error.stack : error);
         return new Response("Update processing failed", { status: 500 });
       }
-    }
-
-    if (request.method === "POST" && url.pathname === "/webhook/razorpay") {
-      return handleRazorpayWebhook(request, env);
     }
 
     return new Response("Not found", { status: 404 });
