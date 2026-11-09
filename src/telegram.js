@@ -71,9 +71,12 @@ export async function handleMessage(message, env) {
 
   if (/^[A-Z0-9]{8,30}$/i.test(text)) {
     const pending = await env.DB.prepare(
-      "SELECT id FROM payments WHERE telegram_id=? AND status='awaiting_payment' ORDER BY id DESC LIMIT 1"
-    ).bind(userId).first();
-    if (pending) return submitManualUtr(env, userId, String(pending.id), text, chatId);
+      "SELECT id FROM payments WHERE telegram_id=? AND status='awaiting_payment' ORDER BY id DESC LIMIT 2"
+    ).bind(userId).all();
+    const requests = pending.results || [];
+    if (requests.length === 1) return submitManualUtr(env, userId, String(requests[0].id), text, chatId);
+    if (requests.length > 1) return sendMessage(env, chatId,
+      "You have more than one unpaid request. Send /utr REQUEST_ID UTR_NUMBER so I can match it correctly.");
   }
 
   if (text === "🎲 Random Video") return deliverRandom(env, chatId, userId);
