@@ -1,6 +1,106 @@
 import { sendMessage, telegramCall } from "./telegram-api.js";
 import { handleManualPaymentAdminCommand } from "./manual-payment-admin.js";
 
+
+const ADMIN_COMMANDS = [
+  { command: "helpadmin", description: "Show all administrator commands" },
+  { command: "setwelcome", description: "Set or update welcome media and text" },
+  { command: "deletewelcome", description: "Remove custom welcome media and text" },
+  { command: "cancelwelcome", description: "Cancel welcome setup" },
+  { command: "stats", description: "View bot statistics" },
+  { command: "broadcast", description: "Broadcast a message to users" },
+  { command: "send", description: "Send a message to one user" },
+  { command: "ban", description: "Block a user" },
+  { command: "unban", description: "Unblock a user" },
+  { command: "addplan", description: "Create a subscription plan" },
+  { command: "plansadmin", description: "List subscription plans" },
+  { command: "activateplan", description: "Activate a plan" },
+  { command: "deactivateplan", description: "Deactivate a plan" },
+  { command: "videos", description: "List indexed videos" },
+  { command: "removevideo", description: "Remove a catalogue video" },
+  { command: "grant", description: "Grant complimentary access" },
+  { command: "checkchannel", description: "Check channel permissions" },
+  { command: "pendingpayments", description: "Review submitted UPI payments" },
+  { command: "approvepayment", description: "Approve a verified payment" },
+  { command: "rejectpayment", description: "Reject a payment request" },
+  { command: "myid", description: "Show your Telegram ID" }
+];
+
+export async function setChatCommands(env, chatId, admin) {
+  const commands = admin ? [
+    { command: "start", description: "Open V-Stream" },
+    { command: "help", description: "Show member commands" },
+    { command: "commands", description: "Show member commands" },
+    ...ADMIN_COMMANDS
+  ] : [
+    { command: "start", description: "Open V-Stream" },
+    { command: "help", description: "Show member commands" },
+    { command: "commands", description: "Show member commands" },
+    { command: "utr", description: "Submit UPI payment reference" }
+  ];
+  await telegramCall(env, "setMyCommands", {
+    commands,
+    scope: { type: "chat", chat_id: chatId }
+  });
+}
+
+export async function handleAdminMessage(message, env) {
+  if (!message.from || !message.chat || message.chat.type !== "private") return false;
+  const adminId = String(message.from.id);
+  if (!isAdmin(adminId, env)) return false;
+  const session = await env.DB.prepare(
+    "SELECT stage, media_type, media_file_id FROM admin_welcome_sessions WHERE admin_id=?"
+  ).bind(adminId).first();
+  if (!session) return false;
+
+  const chatId = message.chat.id;
+  if (message.text && message.text.trim() === "/cancelwelcome") {
+    await env.DB.prepare("DELETE FROM admin_welcome_sessions WHERE admin_id=?").bind(adminId).run();
+    await sendMessage(env, chatId, "Welcome setup cancelled.");
+    return true;
+  }
+
+  if (session.stage === "media") {
+    let mediaType = null;
+    let fileId = null;
+    if (message.photo && message.photo.length) {
+      mediaType = "photo";
+      fileId = message.photo[message.photo.length - 1].file_id;
+    } else if (message.animation) {
+      mediaType = "animation";
+      fileId = message.animation.file_id;
+    } else if (message.video) {
+      mediaType = "video";
+      fileId = message.video.file_id;
+    }
+    if (!mediaType || !fileId) {
+      await sendMessage(env, chatId, "Please send one image, GIF, or video first. Use /cancelwelcome to stop.");
+      return true;
+    }
+    await env.DB.prepare(
+      "UPDATE admin_welcome_sessions SET stage='text', media_type=?, media_file_id=?, updated_at=datetime('now') WHERE admin_id=?"
+    ).bind(mediaType, fileId, adminId).run();
+    await sendMessage(env, chatId, "Media received! Now send the welcome text users should see.");
+    return true;
+  }
+
+  if (session.stage === "text") {
+    const welcomeText = (message.text || message.caption || "").trim();
+    if (!welcomeText || welcomeText.startsWith("/")) {
+      await sendMessage(env, chatId, "Please send the welcome text as a normal message, not a command.");
+      return true;
+    }
+    await env.DB.prepare(
+      "INSERT INTO welcome_settings(id, media_type, media_file_id, welcome_text, updated_at) VALUES (1, ?, ?, ?, datetime('now')) " +
+      "ON CONFLICT(id) DO UPDATE SET media_type=excluded.media_type, media_file_id=excluded.media_file_id, welcome_text=excluded.welcome_text, updated_at=datetime('now')"
+    ).bind(session.media_type, session.media_file_id, welcomeText.slice(0, 3500)).run();
+    await env.DB.prepare("DELETE FROM admin_welcome_sessions WHERE admin_id=?").bind(adminId).run();
+    await sendMessage(env, chatId, "Welcome saved! New users will see it the next time they use /start.");
+    return true;
+  }
+  return false;
+}
+
 export function isAdmin(userId, env) {
   return (env.ADMIN_IDS || "").split(",").map(function (id) { return id.trim(); })
     .filter(Boolean).includes(String(userId));
@@ -18,6 +118,7 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
   if (await handleManualPaymentAdminCommand(message, env, command, args, rawText)) return true;
 
   const adminCommands = [
+    "/setwelcome", "/deletewelcome", "/cancelwelcome",
     "/stats", "/broadcast", "/send", "/ban", "/unban", "/addplan",
     "/activateplan", "/deactivateplan", "/plansadmin", "/helpadmin",
     "/videos", "/removevideo", "/grant", "/checkchannel"
@@ -31,6 +132,9 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
   if (command === "/helpadmin") {
     await sendMessage(env, chatId,
       "👑 V-Stream owner commands\n\n" +
+      "/setwelcome – set/update welcome image, GIF or video, then text\n" +
+      "/deletewelcome – remove custom welcome media and text\n" +
+      "/cancelwelcome – cancel welcome setup\n" +
       "/stats – bot statistics\n" +
       "/broadcast MESSAGE – send announcement to all users\n" +
       "/send USER_ID MESSAGE – message one user\n" +
@@ -46,6 +150,28 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
       "/approvepayment ID – approve after bank verification\n" +
       "/rejectpayment ID [REASON] – reject a request\n" +
       "/myid – show your Telegram ID");
+    return true;
+  }
+
+  if (command === "/setwelcome") {
+    await env.DB.prepare(
+      "INSERT INTO admin_welcome_sessions(admin_id, chat_id, stage, media_type, media_file_id, updated_at) " +
+      "VALUES (?, ?, 'media', NULL, NULL, datetime('now')) " +
+      "ON CONFLICT(admin_id) DO UPDATE SET chat_id=excluded.chat_id, stage='media', media_type=NULL, media_file_id=NULL, updated_at=datetime('now')"
+    ).bind(String(userId), String(chatId)).run();
+    await sendMessage(env, chatId, "Send the welcome image, GIF, or video first.\n\nThen I will ask for the text shown to users.\n\nSend /cancelwelcome to cancel.");
+    return true;
+  }
+
+  if (command === "/cancelwelcome") {
+    await env.DB.prepare("DELETE FROM admin_welcome_sessions WHERE admin_id=?").bind(String(userId)).run();
+    await sendMessage(env, chatId, "Welcome setup cancelled.");
+    return true;
+  }
+
+  if (command === "/deletewelcome") {
+    await env.DB.prepare("DELETE FROM welcome_settings WHERE id=1").run();
+    await sendMessage(env, chatId, "Custom welcome removed. The default V-Stream greeting is active again.");
     return true;
   }
 
