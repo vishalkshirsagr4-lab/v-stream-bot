@@ -11,12 +11,10 @@ function constantTimeEqual(a, b) {
 
 async function dispatchUpdate(update, env) {
   try {
-    if (update.message) {
-      if (update.message.chat && update.message.chat.type === "channel") {
-        await handleChannelPost(update.message, env);
-      } else {
-        await handleMessage(update.message, env);
-      }
+    if (update.channel_post) {
+      await handleChannelPost(update.channel_post, env);
+    } else if (update.message) {
+      await handleMessage(update.message, env);
     } else if (update.callback_query) {
       await handleCallback(update.callback_query, env);
     }
