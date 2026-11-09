@@ -85,7 +85,7 @@ Check the result with Telegram getWebhookInfo. Do not share your bot token or th
 Set `UPI_ID` as a Worker secret. Set `UPI_PAYEE_NAME` in wrangler.toml [vars] to the eligible adult account holder's display name. The UPI ID should belong to an eligible parent/guardian who is responsible for receiving and reconciling payments.
 
 1. Buyer selects a plan and receives the UPI ID, payee, exact amount and request ID.
-2. Buyer pays through their UPI app and sends `/utr REQUEST_ID UTR_NUMBER`.
+2. Buyer pays through their UPI app and sends the UTR number in the bot chat. If they have multiple open requests, they use `/utr REQUEST_ID UTR_NUMBER`.
 3. The bot marks the request pending review and notifies configured admins.
 4. An admin checks the actual receiving bank account/statement for the matching credit, amount and UTR.
 5. Only then use `/approvepayment REQUEST_ID`; the bot activates the subscription.
