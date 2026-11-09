@@ -58,11 +58,11 @@ async function sendWelcome(env, chatId) {
   const welcomeText = saved
     ? saved.welcome_text + "\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine
     : "🎬 Welcome to V-Stream!\n\nYour place to discover and stream videos.\n🎁 Enjoy up to 5 free trial videos, or explore a subscription plan.\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine + "\n━━━━━━━━━━━━━━━━━━\n\nChoose an option to get started 👇";
-  const markup = { reply_markup: welcomeMarkup(env) };
+  const markup = { reply_markup: replyKeyboard() };
   if (saved && saved.media_file_id) {
     const method = saved.media_type === "photo" ? "sendPhoto" : saved.media_type === "animation" ? "sendAnimation" : "sendVideo";
     const field = saved.media_type === "photo" ? "photo" : saved.media_type === "animation" ? "animation" : "video";
-    const payload = { chat_id: chatId, [field]: saved.media_file_id, protect_content: true };
+    const payload = { chat_id: chatId, [field]: saved.media_file_id };
     if (welcomeText.length <= 1024) {
       payload.caption = welcomeText;
       payload.reply_markup = markup.reply_markup;
@@ -101,13 +101,13 @@ export async function handleMessage(message, env) {
   }
 
   if (/^[A-Z0-9]{8,30}$/i.test(text)) {
-    const pending = await env.DB.prepare(
-      "SELECT id FROM payments WHERE telegram_id=? AND status='awaiting_payment' ORDER BY id DESC LIMIT 2"
-    ).bind(userId).all();
-    const requests = pending.results || [];
-    if (requests.length === 1) return submitManualUtr(env, userId, String(requests[0].id), text, chatId);
-    if (requests.length > 1) return sendMessage(env, chatId,
-      "You have more than one unpaid request. Send /utr REQUEST_ID UTR_NUMBER so I can match it correctly.");
+    const session = await env.DB.prepare(
+      "SELECT payment_id FROM payment_utr_sessions WHERE telegram_id=?"
+    ).bind(userId).first();
+    if (session) {
+      await env.DB.prepare("DELETE FROM payment_utr_sessions WHERE telegram_id=?").bind(userId).run();
+      return submitManualUtr(env, userId, String(session.payment_id), text, chatId);
+    }
   }
 
   if (text === "🎲 Random Video") return deliverRandom(env, chatId, userId);
@@ -131,6 +131,19 @@ export async function handleCallback(query, env) {
   if (query.data === "trial") return deliverTrial(env, chatId, userId);
   if (query.data === "random") return deliverRandom(env, chatId, userId);
   if (query.data === "plans") return showPlans(env, chatId);
+  if (query.data && query.data.startsWith("paid:")) {
+    const paymentId = Number(query.data.slice(5));
+    if (!Number.isSafeInteger(paymentId) || paymentId < 1) return sendMessage(env, chatId, "Invalid payment request.");
+    const payment = await env.DB.prepare(
+      "SELECT id FROM payments WHERE id=? AND telegram_id=? AND status='awaiting_payment'"
+    ).bind(paymentId, userId).first();
+    if (!payment) return sendMessage(env, chatId, "This payment request is not available. Start a new subscription request if needed.");
+    await env.DB.prepare(
+      "INSERT INTO payment_utr_sessions(telegram_id, payment_id, updated_at) VALUES (?, ?, datetime('now')) " +
+      "ON CONFLICT(telegram_id) DO UPDATE SET payment_id=excluded.payment_id, updated_at=datetime('now')"
+    ).bind(userId, paymentId).run();
+    return sendMessage(env, chatId, "✅ After completing the payment, send your UTR/reference number here as a message. I’ll forward it for admin verification. Do not share your UPI PIN or OTP.");
+  }
   if (query.data && query.data.startsWith("buy:")) {
     const planId = Number(query.data.slice(4));
     if (!Number.isInteger(planId) || planId < 1) return sendMessage(env, chatId, "Invalid plan.");
@@ -217,25 +230,18 @@ async function startPurchase(env, chatId, userId, planId) {
       "&pn=" + encodeURIComponent(request.payeeName) +
       "&am=" + encodeURIComponent(amount) + "&cu=INR&tn=" + encodeURIComponent("V-Stream request #" + request.id);
     const qrUrl = "https://api.qrserver.com/v1/create-qr-code/?size=420x420&margin=12&data=" + encodeURIComponent(upiUri);
-    await telegramCall(env, "sendPhoto", {
-      chat_id: chatId, photo: qrUrl, protect_content: true,
-      caption: "📲 Scan this QR in your UPI app. Verify the payee and exact amount before paying.\n\nPlan: " + request.plan.name +
-        "\nAmount: ₹" + amount + "\nUPI ID: " + request.upiId + "\nPayee: " + request.payeeName +
-        "\nRequest: #" + request.id
+    return telegramCall(env, "sendPhoto", {
+      chat_id: chatId,
+      photo: qrUrl,
+      caption: "📲 Scan this QR with your UPI app. Check the payee and amount in your UPI app before paying.\n\n" +
+        "Plan: " + request.plan.name + "\nAmount: ₹" + amount +
+        "\nPayment request: #" + request.id,
+      reply_markup: {
+        inline_keyboard: [[{ text: "✅ Paid — Submit UTR", callback_data: "paid:" + request.id }]]
+      }
     });
-    return sendMessage(env, chatId,
-      "💳 UPI payment instructions\n\n" +
-      "Plan: " + request.plan.name + "\n" +
-      "Amount: ₹" + (request.plan.amount_paise / 100).toFixed(2) + "\n" +
-      "UPI ID: " + request.upiId + "\n" +
-      "Payee: " + request.payeeName + "\n\n" +
-      "Payment request ID: #" + request.id + "\n\n" +
-      "After paying the exact amount, simply send your UTR number in this chat.\n" +
-      "Or use: /utr " + request.id + " YOUR_UTR_NUMBER\n\n" +
-      "Your subscription stays pending until the administrator verifies the payment in the receiving bank account. Do not send your UPI PIN or OTP to anyone.");
   } catch (error) {
     console.error("Could not create manual UPI request:", error);
-    return sendMessage(env, chatId,
-      "UPI payments are not configured yet. Please contact the administrator.");
+    return sendMessage(env, chatId, "UPI payment could not be started. Please contact the administrator.");
   }
 }
