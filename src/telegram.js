@@ -1,7 +1,7 @@
-import { sendMessage, sendVideo, answerCallbackQuery } from "./telegram-api.js";
+import { sendMessage, sendVideo, answerCallbackQuery, telegramCall } from "./telegram-api.js";
 import { upsertUser, getUser, getActiveSubscription, listPlans, getRandomVideo } from "./db.js";
 import { createManualPaymentRequest, submitManualUtr } from "./payments.js";
-import { handleAdminCommand } from "./admin.js";
+import { handleAdminCommand, handleAdminMessage, setChatCommands, isAdmin } from "./admin.js";
 
 const HELP_TEXT =
   "🎬 V-Stream Help\n\n" +
@@ -49,16 +49,25 @@ async function sendWelcome(env, chatId) {
   const developerUsername = env.DEVELOPER_USERNAME || "";
   const developerLine = "👨‍💻 Developer: " + (developerUsername || "V-Stream Team") +
     "\n🆔 Developer ID: " + developerId;
-
-  return sendMessage(env, chatId,
-    "🎬 Welcome to V-Stream!\n\n" +
-    "Your place to discover and stream videos.\n" +
-    "🎁 Enjoy up to 5 free trial videos, or explore a subscription plan.\n\n" +
-    "━━━━━━━━━━━━━━━━━━\n" +
-    developerLine + "\n" +
-    "━━━━━━━━━━━━━━━━━━\n\n" +
-    "Choose an option to get started 👇",
-    { reply_markup: welcomeMarkup(env) });
+  const saved = await env.DB.prepare(
+    "SELECT media_type, media_file_id, welcome_text FROM welcome_settings WHERE id=1"
+  ).first();
+  const welcomeText = saved
+    ? saved.welcome_text + "\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine
+    : "🎬 Welcome to V-Stream!\n\nYour place to discover and stream videos.\n🎁 Enjoy up to 5 free trial videos, or explore a subscription plan.\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine + "\n━━━━━━━━━━━━━━━━━━\n\nChoose an option to get started 👇";
+  const markup = { reply_markup: welcomeMarkup(env) };
+  if (saved && saved.media_file_id) {
+    const method = saved.media_type === "photo" ? "sendPhoto" : saved.media_type === "animation" ? "sendAnimation" : "sendVideo";
+    const field = saved.media_type === "photo" ? "photo" : saved.media_type === "animation" ? "animation" : "video";
+    const payload = { chat_id: chatId, [field]: saved.media_file_id };
+    if (welcomeText.length <= 1024) {
+      payload.caption = welcomeText;
+      payload.reply_markup = markup.reply_markup;
+      return telegramCall(env, method, payload);
+    }
+    await telegramCall(env, method, payload);
+  }
+  return sendMessage(env, chatId, welcomeText, markup);
 }
 
 export async function handleMessage(message, env) {
@@ -70,13 +79,19 @@ export async function handleMessage(message, env) {
   const blocked = await env.DB.prepare("SELECT is_blocked FROM users WHERE telegram_id=?").bind(userId).first();
   if (blocked && blocked.is_blocked) return;
 
+  if (await handleAdminMessage(message, env)) return;
+
   const text = (message.text || "").trim();
   if (text.startsWith("/")) {
     const parts = text.split(/\s+/);
     const command = parts[0].split("@")[0].toLowerCase();
     const args = parts.slice(1);
-    if (command === "/start") return sendWelcome(env, chatId);
-    if (command === "/help") return sendMessage(env, chatId, HELP_TEXT, { reply_markup: replyKeyboard() });
+    if (command === "/start") {
+      try { await setChatCommands(env, chatId, isAdmin(userId, env)); }
+      catch (error) { console.error("Could not set chat command menu:", error); }
+      return sendWelcome(env, chatId);
+    }
+    if (command === "/help" || command === "/commands") return sendMessage(env, chatId, HELP_TEXT, { reply_markup: replyKeyboard() });
     if (command === "/utr") return submitManualUtr(env, userId, args[0], args[1], chatId);
     if (await handleAdminCommand(message, env, command, args, text)) return;
     return sendMessage(env, chatId, "Unknown command. Send /help for available options.");
