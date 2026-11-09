@@ -10,16 +10,12 @@ function constantTimeEqual(a, b) {
 }
 
 async function dispatchUpdate(update, env) {
-  try {
-    if (update.channel_post) {
-      await handleChannelPost(update.channel_post, env);
-    } else if (update.message) {
-      await handleMessage(update.message, env);
-    } else if (update.callback_query) {
-      await handleCallback(update.callback_query, env);
-    }
-  } catch (error) {
-    console.error("Telegram update processing failed:", error && error.stack ? error.stack : error);
+  if (update.channel_post) {
+    await handleChannelPost(update.channel_post, env);
+  } else if (update.message) {
+    await handleMessage(update.message, env);
+  } else if (update.callback_query) {
+    await handleCallback(update.callback_query, env);
   }
 }
 
@@ -36,9 +32,20 @@ export default {
       if (!env.BOT_WEBHOOK_SECRET || !constantTimeEqual(supplied, env.BOT_WEBHOOK_SECRET)) {
         return new Response("Unauthorized", { status: 401 });
       }
-      const update = await request.json();
-      ctx.waitUntil(dispatchUpdate(update, env));
-      return Response.json({ ok: true });
+      let update;
+      try {
+        update = await request.json();
+      } catch {
+        return new Response("Invalid JSON", { status: 400 });
+      }
+      try {
+        // Finish processing before acknowledging the webhook so transient errors can be retried by Telegram.
+        await dispatchUpdate(update, env);
+        return Response.json({ ok: true });
+      } catch (error) {
+        console.error("Telegram update processing failed:", error && error.stack ? error.stack : error);
+        return new Response("Update processing failed", { status: 500 });
+      }
     }
 
     if (request.method === "POST" && url.pathname === "/webhook/razorpay") {
