@@ -18,12 +18,13 @@ export function sendMessage(env, chatId, text, extra = {}) {
   return telegramCall(env, "sendMessage", { chat_id: chatId, text, ...extra });
 }
 
-export function sendVideo(env, chatId, fileId, caption = "") {
+export function sendVideo(env, chatId, fileId, caption = "", protectContent = false) {
   return telegramCall(env, "sendVideo", {
     chat_id: chatId,
     video: fileId,
     caption: String(caption).slice(0, 900),
-    supports_streaming: true
+    supports_streaming: true,
+    protect_content: Boolean(protectContent)
   });
 }
 
