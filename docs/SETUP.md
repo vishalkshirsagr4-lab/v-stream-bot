@@ -120,11 +120,11 @@ The example prices are only examples. Choose and confirm actual prices before sh
 - `/send USER_ID MESSAGE` – message one user.
 - `/ban USER_ID` and `/unban USER_ID`.
 - `/addplan NAME RUPEES DAYS`.
-- `/plansadmin`, `/activateplan ID`, `/deactivateplan ID`.
+- `/plansadmin`, `/activateplan ID`, `/deactivateplan ID`.\n- `/helpadmin` – owner command list.\n- `/videos` and `/removevideo ID` – inspect/remove indexed videos.\n- `/grant USER_ID DAYS [PLAN_NAME]` – grant complimentary access.\n- `/checkchannel` – verify configured channel and bot admin status.
 
 Broadcasts are processed in batches of 20 by the Worker's one-minute scheduled trigger to avoid a single long-running webhook request.
 
-## 9. GitHub Actions deployment (optional)
+## 9. Video catalogue and owner tools\n\nNew video posts in the configured channel are indexed automatically when Telegram sends a `channel_post` update. The bot cannot read the channel's historical message list; repost older videos after the webhook is active. Use `/checkchannel` to verify bot permissions, `/videos` to inspect indexed entries, and `/removevideo ID` to remove an entry from random delivery. Removing a catalogue entry does not delete the original channel post.\n\nUse `/grant USER_ID DAYS [PLAN_NAME]` only for complimentary access that you intentionally authorize.\n\n## 10. GitHub Actions deployment (optional)
 
 Add these GitHub repository Actions secrets:
 
@@ -133,7 +133,7 @@ Add these GitHub repository Actions secrets:
 
 The workflow applies D1 migrations and deploys the Worker on pushes to main. Create the D1 database once first and commit the updated wrangler.toml database_id. Worker runtime secrets still need to be configured with wrangler secret put or the Cloudflare dashboard.
 
-## 10. Operational checklist
+## 11. Operational checklist
 
 - Confirm /health returns ok.
 - Confirm Telegram getWebhookInfo shows the correct webhook URL.
