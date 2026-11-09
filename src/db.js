@@ -26,8 +26,18 @@ export async function listPlans(db) {
   return result.results || [];
 }
 
-export function getRandomVideo(db) {
-  return db.prepare(
-    "SELECT id, file_id, caption FROM videos ORDER BY RANDOM() LIMIT 1"
-  ).first();
+export async function getRandomVideo(db, telegramId) {
+  const user = String(telegramId);
+  let video = await db.prepare(
+    "SELECT id, file_id, caption FROM videos WHERE id NOT IN " +
+    "(SELECT video_id FROM user_video_history WHERE telegram_id=?) ORDER BY RANDOM() LIMIT 1"
+  ).bind(user).first();
+  if (video) return video;
+
+  const total = await db.prepare("SELECT COUNT(*) AS n FROM videos").first();
+  if (!total || !total.n) return null;
+
+  // Start a fresh viewing cycle only after this member has seen every catalogue video.
+  await db.prepare("DELETE FROM user_video_history WHERE telegram_id=?").bind(user).run();
+  return db.prepare("SELECT id, file_id, caption FROM videos ORDER BY RANDOM() LIMIT 1").first();
 }
