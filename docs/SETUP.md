@@ -1,6 +1,6 @@
 # V-Stream Bot – setup and deployment
 
-This repository contains a Telegram channel video bot using Cloudflare Workers + D1. It supports five trial videos, subscription-only random delivery, Razorpay payment links, automatic webhook activation, owner commands and queued broadcasts.
+This repository contains a Telegram channel video bot using Cloudflare Workers + D1. It supports five trial videos, subscription-only random delivery, manual UPI payments, UTR submission and owner-reviewed activation, owner commands and queued broadcasts.
 
 Only publish videos you own or have permission to distribute. Keep the channel's content lawful and suitable for the intended audience. Do not use the bot to distribute age-restricted material.
 
@@ -43,9 +43,7 @@ npx wrangler secret put BOT_TOKEN
 npx wrangler secret put BOT_WEBHOOK_SECRET
 npx wrangler secret put ADMIN_IDS
 npx wrangler secret put CHANNEL_ID
-npx wrangler secret put RAZORPAY_KEY_ID
-npx wrangler secret put RAZORPAY_KEY_SECRET
-npx wrangler secret put RAZORPAY_WEBHOOK_SECRET
+npx wrangler secret put UPI_ID
 ```
 
 ADMIN_IDS accepts comma-separated numeric Telegram user IDs. The bot fails closed for admin commands if this secret is missing.
@@ -82,20 +80,18 @@ curl -X POST "https://api.telegram.org/botYOUR_BOT_TOKEN/setWebhook" \
 
 Check the result with Telegram getWebhookInfo. Do not share your bot token or the full getWebhookInfo URL publicly.
 
-## 6. Razorpay test configuration
+## 6. Manual UPI payment flow
 
-Payment processing requires a Razorpay merchant account and onboarding. Because the project owner is under 18, an eligible parent or guardian must own and complete merchant onboarding and authorize use of the account. Do not try to bypass age or identity requirements.
+Set `UPI_ID` as a Worker secret. Set `UPI_PAYEE_NAME` in wrangler.toml [vars] to the eligible adult account holder's display name. The UPI ID should belong to an eligible parent/guardian who is responsible for receiving and reconciling payments.
 
-Start with test-mode credentials. Configure a Razorpay webhook:
+1. Buyer selects a plan and receives the UPI ID, payee, exact amount and request ID.
+2. Buyer pays through their UPI app and sends `/utr REQUEST_ID UTR_NUMBER`.
+3. The bot marks the request pending review and notifies configured admins.
+4. An admin checks the actual receiving bank account/statement for the matching credit, amount and UTR.
+5. Only then use `/approvepayment REQUEST_ID`; the bot activates the subscription.
+6. Use `/rejectpayment REQUEST_ID [REASON]` for a request that cannot be verified.
 
-- URL: `https://YOUR_WORKER_URL/webhook/razorpay`
-- Event: `payment_link.paid`
-- Also enable `payment_link.expired` and `payment_link.cancelled`
-- Webhook secret: same value stored in RAZORPAY_WEBHOOK_SECRET
-
-The webhook verifies the HMAC-SHA256 signature against the raw request body. The payment link ID, INR currency and amount are checked against the pending D1 payment. Payment activation is idempotent: the payment row is conditionally updated and each payment can create at most one subscription.
-
-Do not accept real payments until the merchant account, refunds, customer support, taxes and applicable rules have been reviewed by the responsible adult.
+A UTR is not proof that money was received. Never approve from a screenshot alone. Do not ask for or store UPI PINs, OTPs, card details, passwords or bank login credentials. This bot does not charge a payment-gateway fee, but UPI fees and eligibility depend on the account/provider and transaction type.
 
 ## 7. Configure plans
 
@@ -121,6 +117,7 @@ The example prices are only examples. Choose and confirm actual prices before sh
 - `/ban USER_ID` and `/unban USER_ID`.
 - `/addplan NAME RUPEES DAYS`.
 - `/plansadmin`, `/activateplan ID`, `/deactivateplan ID`.\n- `/helpadmin` – owner command list.\n- `/videos` and `/removevideo ID` – inspect/remove indexed videos.\n- `/grant USER_ID DAYS [PLAN_NAME]` – grant complimentary access.\n- `/checkchannel` – verify configured channel and bot admin status.
+- `/pendingpayments`, `/approvepayment ID`, `/rejectpayment ID [REASON]` – review UPI UTR submissions.
 
 Broadcasts are processed in batches of 20 by the Worker's one-minute scheduled trigger to avoid a single long-running webhook request.
 
@@ -139,8 +136,9 @@ The workflow applies D1 migrations and deploys the Worker on pushes to main. Cre
 - Confirm Telegram getWebhookInfo shows the correct webhook URL.
 - Confirm the bot is a channel admin and a newly posted video appears in the D1 videos table.
 - Confirm each test user receives at most five trial videos.
+- Test a UPI request, duplicate UTR rejection, admin bank verification and subscription approval.
 - Confirm Random Video is denied without an active subscription.
-- Test successful, failed, expired and duplicate payment webhooks in Razorpay test mode.
+- Test manual UTR submission, duplicate UTR rejection, approval and rejection before real use.
 - Test subscription extension when a user buys before the current expiry.
 - Test /broadcast with a small test group.
 - Keep secrets private and rotate any token that is accidentally exposed.
