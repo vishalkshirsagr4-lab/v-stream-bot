@@ -1,5 +1,6 @@
 import { sendMessage, telegramCall } from "./telegram-api.js";
 import { handleManualPaymentAdminCommand } from "./manual-payment-admin.js";
+import { handleAdminExtraCommand, handleAdminExtraMessage } from "./admin-extra.js";
 
 
 const ADMIN_COMMANDS = [
@@ -53,6 +54,7 @@ export async function handleAdminMessage(message, env) {
   if (!message.from || !message.chat || message.chat.type !== "private") return false;
   const adminId = String(message.from.id);
   if (!isAdmin(adminId, env)) return false;
+  if (await handleAdminExtraMessage(message, env)) return true;
   const session = await env.DB.prepare(
     "SELECT stage, media_type, media_file_id FROM admin_welcome_sessions WHERE admin_id=?"
   ).bind(adminId).first();
@@ -133,6 +135,8 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
     await sendMessage(env, chatId, "This command is available to the bot owner only.");
     return true;
   }
+
+  if (await handleAdminExtraCommand(message, env, command, args)) return true;
 
   if (command === "/helpadmin") {
     await sendMessage(env, chatId,
