@@ -32,6 +32,14 @@ function welcomeMarkup(env) {
   return { inline_keyboard: keyboard };
 }
 
+function backHomeMarkup(env) {
+  return { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Main Menu", callback_data: "back:home" }]] } };
+}
+
+function backPlansMarkup() {
+  return { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Plans", callback_data: "back:plans" }]] } };
+}
+
 function replyKeyboard() {
   return {
     keyboard: [
@@ -92,7 +100,7 @@ export async function handleMessage(message, env) {
       catch (error) { console.error("Could not set chat command menu:", error); }
       return sendWelcome(env, chatId);
     }
-    if (command === "/help" || command === "/commands") return sendMessage(env, chatId, HELP_TEXT, { reply_markup: replyKeyboard() });
+    if (command === "/help" || command === "/commands") return sendMessage(env, chatId, HELP_TEXT, { reply_markup: { inline_keyboard: [[{ text: "⬅️ Back to Main Menu", callback_data: "back:home" }]] } });
     if (command === "/utr") return submitManualUtr(env, userId, args[0], args[1], chatId);
     if (await handleAdminCommand(message, env, command, args, text)) return;
     return sendMessage(env, chatId, "Unknown command. Send /help for available options.");
@@ -112,7 +120,7 @@ export async function handleMessage(message, env) {
   if (text === "👑 My Subscription") return showSubscription(env, chatId, userId);
   if (text === "🎁 Trial Videos") return deliverTrial(env, chatId, userId);
   if (text === "💳 Subscription") return showPlans(env, chatId);
-  if (text === "❓ Help") return sendMessage(env, chatId, HELP_TEXT);
+  if (text === "❓ Help") return sendMessage(env, chatId, HELP_TEXT, backHomeMarkup(env));
 }
 
 export async function handleCallback(query, env) {
@@ -125,17 +133,19 @@ export async function handleCallback(query, env) {
   const user = await getUser(env.DB, userId);
   if (user && user.is_blocked) return sendMessage(env, chatId, "Your access to this bot is disabled.");
 
-  if (query.data === "help") return sendMessage(env, chatId, HELP_TEXT);
+  if (query.data === "back:home") return sendWelcome(env, chatId);
+  if (query.data === "back:plans") return showPlans(env, chatId);
+  if (query.data === "help") return sendMessage(env, chatId, HELP_TEXT, backHomeMarkup(env));
   if (query.data === "trial") return deliverTrial(env, chatId, userId);
   if (query.data === "random") return deliverRandom(env, chatId, userId);
   if (query.data === "plans") return showPlans(env, chatId);
   if (query.data && query.data.startsWith("paid:")) {
     const paymentId = Number(query.data.slice(5));
-    if (!Number.isSafeInteger(paymentId) || paymentId < 1) return sendMessage(env, chatId, "Invalid payment request.");
+    if (!Number.isSafeInteger(paymentId) || paymentId < 1) return sendMessage(env, chatId, "Invalid payment request.", backPlansMarkup());
     const payment = await env.DB.prepare(
       "SELECT id FROM payments WHERE id=? AND telegram_id=? AND status='awaiting_payment'"
     ).bind(paymentId, userId).first();
-    if (!payment) return sendMessage(env, chatId, "This payment request is not available. Start a new subscription request if needed.");
+    if (!payment) return sendMessage(env, chatId, "This payment request is not available. Start a new subscription request if needed.", backPlansMarkup());
     await env.DB.prepare(
       "INSERT INTO payment_utr_sessions(telegram_id, payment_id, updated_at) VALUES (?, ?, datetime('now')) " +
       "ON CONFLICT(telegram_id) DO UPDATE SET payment_id=excluded.payment_id, updated_at=datetime('now')"
@@ -144,7 +154,7 @@ export async function handleCallback(query, env) {
   }
   if (query.data && query.data.startsWith("buy:")) {
     const planId = Number(query.data.slice(4));
-    if (!Number.isInteger(planId) || planId < 1) return sendMessage(env, chatId, "Invalid plan.");
+    if (!Number.isInteger(planId) || planId < 1) return sendMessage(env, chatId, "Invalid plan.", backPlansMarkup());
     return startPurchase(env, chatId, userId, planId);
   }
 }
@@ -193,7 +203,7 @@ async function deliverRandom(env, chatId, userId) {
   if (!sub) {
     return sendMessage(env, chatId,
       "🔒 Random videos require an active subscription. You can still use any remaining trial videos.",
-      { reply_markup: replyKeyboard() });
+      backHomeMarkup(env));
   }
   const video = await getRandomVideo(env.DB, userId);
   if (!video) return sendMessage(env, chatId, "No videos are available yet. Please try again later.");
@@ -202,13 +212,13 @@ async function deliverRandom(env, chatId, userId) {
 
 async function showSubscription(env, chatId, userId) {
   const sub = await getActiveSubscription(env.DB, userId);
-  if (!sub) return sendMessage(env, chatId, "You don't have an active subscription. Choose Subscription to view plans.");
+  if (!sub) return sendMessage(env, chatId, "You don't have an active subscription. Choose Subscription to view plans.", backHomeMarkup(env));
   return sendMessage(env, chatId, "👑 Active plan: " + sub.plan_name + "\nExpires: " + sub.expires_at + " UTC");
 }
 
 async function showPlans(env, chatId) {
   const plans = await listPlans(env.DB);
-  if (!plans.length) return sendMessage(env, chatId, "No plans are available yet. Please check back later.");
+  if (!plans.length) return sendMessage(env, chatId, "No plans are available yet. Please check back later.", backHomeMarkup(env));
   const keyboard = plans.map(function (plan) {
     return [{
       text: plan.name + " – ₹" + (plan.amount_paise / 100).toFixed(2) + " / " + plan.duration_days + " days",
@@ -216,7 +226,7 @@ async function showPlans(env, chatId) {
     }];
   });
   return sendMessage(env, chatId, "💳 Choose a subscription plan:", {
-    reply_markup: { inline_keyboard: keyboard }
+    reply_markup: { inline_keyboard: [...keyboard, [{ text: "⬅️ Back to Main Menu", callback_data: "back:home" }]] }
   });
 }
 
@@ -235,11 +245,11 @@ async function startPurchase(env, chatId, userId, planId) {
         "Plan: " + request.plan.name + "\nAmount: ₹" + amount +
         "\nPayment request: #" + request.id,
       reply_markup: {
-        inline_keyboard: [[{ text: "✅ Paid — Submit UTR", callback_data: "paid:" + request.id }]]
+        inline_keyboard: [[{ text: "✅ Paid — Submit UTR", callback_data: "paid:" + request.id }], [{ text: "⬅️ Back to Plans", callback_data: "back:plans" }]]
       }
     });
   } catch (error) {
     console.error("Could not create manual UPI request:", error);
-    return sendMessage(env, chatId, "UPI payment could not be started. Please contact the administrator.");
+    return sendMessage(env, chatId, "UPI payment could not be started. Please contact the administrator.", backPlansMarkup());
   }
 }
