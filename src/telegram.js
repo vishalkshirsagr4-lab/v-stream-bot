@@ -175,7 +175,9 @@ export async function handleChannelPost(message, env) {
 
 
 async function deliverProtectedVideo(env, chatId, userId, video) {
-  const sent = await sendVideo(env, chatId, video.file_id, video.caption || "", true, {\n    reply_markup: { inline_keyboard: [[{ text: "🎲 Random Video", callback_data: "random" }]] }\n  });
+  const sent = await sendVideo(env, chatId, video.file_id, video.caption || "", true, {
+    reply_markup: { inline_keyboard: [[{ text: "🎲 Random Video", callback_data: "random" }]] }
+  });
   await env.DB.prepare(
     "INSERT OR IGNORE INTO user_video_history(telegram_id, video_id, sent_at) VALUES (?, ?, datetime('now'))"
   ).bind(String(userId), video.id).run();
