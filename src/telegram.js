@@ -20,19 +20,13 @@ function trialLimit(env) {
   return Number.isInteger(n) && n > 0 && n <= 20 ? n : 5;
 }
 
-function welcomeMarkup(env) {
-  const username = String(env.DEVELOPER_USERNAME || "").trim().replace(/^@/, "");
-  const keyboard = [
-    [{ text: "🎁 Start Free Trial", callback_data: "trial" }],
-    [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }],
-    [{ text: "❓ Help", callback_data: "help" }]
-  ];
-
-  if (username) {
-    keyboard.push([{ text: "👨‍💻 Contact Developer", url: "https://t.me/" + encodeURIComponent(username) }]);
-  }
-
-  return { inline_keyboard: keyboard };
+function welcomeMarkup() {
+  return {
+    inline_keyboard: [
+      [{ text: "❓ Help", callback_data: "help" }, { text: "🎁 Trial – 5 Videos", callback_data: "trial" }],
+      [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }]
+    ]
+  };
 }
 
 function replyKeyboard() {
@@ -48,17 +42,14 @@ function replyKeyboard() {
 }
 
 async function sendWelcome(env, chatId) {
-  const developerId = env.DEVELOPER_ID || "Not configured";
-  const developerUsername = env.DEVELOPER_USERNAME || "";
-  const developerLine = "👨‍💻 Developer: " + (developerUsername || "V-Stream Team") +
-    "\n🆔 Developer ID: " + developerId;
   const saved = await env.DB.prepare(
     "SELECT media_type, media_file_id, welcome_text FROM welcome_settings WHERE id=1"
   ).first();
-  const welcomeText = saved
-    ? saved.welcome_text + "\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine
-    : "🎬 Welcome to V-Stream!\n\nYour place to discover and stream videos.\n🎁 Enjoy up to 5 free trial videos, or explore a subscription plan.\n\n━━━━━━━━━━━━━━━━━━\n" + developerLine + "\n━━━━━━━━━━━━━━━━━━\n\nChoose an option to get started 👇";
-  const markup = { reply_markup: replyKeyboard() };
+  const welcomeText = saved && saved.welcome_text
+    ? saved.welcome_text
+    : "🎬 Welcome to V-Stream!\\n\\nExplore the available videos and choose an option below.";
+  const markup = { reply_markup: welcomeMarkup() };
+
   if (saved && saved.media_file_id) {
     const method = saved.media_type === "photo" ? "sendPhoto" : saved.media_type === "animation" ? "sendAnimation" : "sendVideo";
     const field = saved.media_type === "photo" ? "photo" : saved.media_type === "animation" ? "animation" : "video";
@@ -71,8 +62,6 @@ async function sendWelcome(env, chatId) {
       await telegramCall(env, method, payload);
       return;
     } catch (error) {
-      // Media file_ids belong to the bot that received them. After a bot-token
-      // change, an old welcome media file_id may be invalid for this bot.
       console.error("Welcome media could not be sent; falling back to text:", error);
     }
   }
