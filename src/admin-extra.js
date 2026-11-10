@@ -76,7 +76,8 @@ export async function handleAdminExtraCommand(message, env, command, args) {
       { text: "❌ Cancel Subscription", callback_data: "adm:subcancel:" + u.telegram_id }
     ]);
     await sendMessage(env, chatId, (q ? "🔎 Search: " + q : "👥 Users — page " + page + " | Total: " + total.n) +
-      "\n\n" + (lines.join("\n\n") || "No matches.") + (q ? "" : "\n\nNext: /users " + (page + 1)),\n      { reply_markup: { inline_keyboard: keyboard } });
+      "\n\n" + (lines.join("\n\n") || "No matches.") + (q ? "" : "\n\nNext: /users " + (page + 1)),
+      { reply_markup: { inline_keyboard: keyboard } });
     return true;
   }
   if (command === "/payments") {
