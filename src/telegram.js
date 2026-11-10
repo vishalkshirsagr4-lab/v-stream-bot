@@ -72,12 +72,14 @@ async function sendWelcome(env, chatId) {
     }
     try {
       await telegramCall(env, method, payload);
+      await sendMessage(env, chatId, "📋 Member menu", { reply_markup: replyKeyboard() });
       return;
     } catch (error) {
       console.error("Welcome media could not be sent; falling back to text:", error);
     }
   }
-  return sendMessage(env, chatId, welcomeText, markup);
+  await sendMessage(env, chatId, welcomeText, markup);
+  return sendMessage(env, chatId, "📋 Member menu", { reply_markup: replyKeyboard() });
 }
 
 export async function handleMessage(message, env) {
