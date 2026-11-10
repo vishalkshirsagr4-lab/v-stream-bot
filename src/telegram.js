@@ -150,7 +150,7 @@ export async function handleCallback(query, env) {
       "INSERT INTO payment_utr_sessions(telegram_id, payment_id, updated_at) VALUES (?, ?, datetime('now')) " +
       "ON CONFLICT(telegram_id) DO UPDATE SET payment_id=excluded.payment_id, updated_at=datetime('now')"
     ).bind(userId, paymentId).run();
-    return sendMessage(env, chatId, "✅ After completing the payment, send your UTR/reference number here as a message. I’ll forward it for admin verification. Do not share your UPI PIN or OTP.");
+    return sendMessage(env, chatId, "✅ After completing the payment, send your UTR/reference number here as a message. I’ll forward it for admin verification. Do not share your UPI PIN or OTP.", backPlansMarkup());
   }
   if (query.data && query.data.startsWith("buy:")) {
     const planId = Number(query.data.slice(4));
