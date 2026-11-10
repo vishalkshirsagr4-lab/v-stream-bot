@@ -59,17 +59,28 @@ export async function submitManualUtr(env, telegramId, requestIdText, utrText, c
     console.error("Could not acknowledge UTR submission to buyer:", error);
   }
 
-  const admins = (env.ADMIN_IDS || "").split(",").map(x => x.trim()).filter(x => /^\d+$/.test(x));
+  const payment = await env.DB.prepare(
+    "SELECT p.id, p.plan_name, p.amount_paise, p.duration_days, u.username, u.first_name " +
+    "FROM payments p LEFT JOIN users u ON u.telegram_id=p.telegram_id WHERE p.id=?"
+  ).bind(requestId).first();
+  const username = payment && payment.username ? "@" + payment.username : "Not set";
+  const card = "🔔 NEW PAYMENT — REVIEW REQUIRED\\n\\n" +
+    "🧾 Request: #" + requestId + "\\n" +
+    "👤 User: " + (payment && payment.first_name || "Unknown") + "\\n" +
+    "🔗 Username: " + username + "\\n" +
+    "🆔 Telegram ID: " + telegramId + "\\n\\n" +
+    "📦 Purchased plan: " + (payment && payment.plan_name || "Unknown") + "\\n" +
+    "💰 Amount: ₹" + (payment ? (payment.amount_paise / 100).toFixed(2) : "Unknown") + "\\n" +
+    "📅 Duration: " + (payment ? payment.duration_days + " days" : "Unknown") + "\\n" +
+    "🏷 UTR: " + utr;
+  const markup = { reply_markup: { inline_keyboard: [[
+    { text: "✅ Approve", callback_data: "payreview:approve:" + requestId },
+    { text: "❌ Reject", callback_data: "payreview:reject:" + requestId }
+  ]] } };
+  const admins = (env.ADMIN_IDS || "").split(",").map(x => x.trim()).filter(x => /^\\d+$/.test(x));
   for (const adminId of admins) {
-    try {
-      await sendMessage(env, adminId,
-        "🔔 UPI payment needs review\nRequest: #" + requestId +
-        "\nUser ID: " + telegramId + "\nUTR: " + utr +
-        "\nOpen /pendingpayments, then use /approvepayment " + requestId +
-        " only after confirming the matching credit in the bank account.");
-    } catch (error) {
-      console.error("Could not notify payment admin:", adminId, error);
-    }
+    try { await sendMessage(env, adminId, card, markup); }
+    catch (error) { console.error("Could not notify payment admin:", adminId, error); }
   }
 }
 
