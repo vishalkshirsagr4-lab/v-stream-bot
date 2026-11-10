@@ -8,6 +8,11 @@ const ADMIN_COMMANDS = [
   { command: "deletewelcome", description: "Remove custom welcome media and text" },
   { command: "cancelwelcome", description: "Cancel welcome setup" },
   { command: "stats", description: "View bot statistics" },
+  { command: "users", description: "Browse registered members" },
+  { command: "search", description: "Search members" },
+  { command: "payments", description: "Search payment history" },
+  { command: "confirmbroadcast", description: "Confirm prepared broadcast" },
+  { command: "cancelbroadcast", description: "Cancel prepared broadcast" },
   { command: "broadcast", description: "Broadcast a message to users" },
   { command: "send", description: "Send a message to one user" },
   { command: "ban", description: "Block a user" },
@@ -119,7 +124,7 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
 
   const adminCommands = [
     "/setwelcome", "/deletewelcome", "/cancelwelcome",
-    "/stats", "/broadcast", "/send", "/ban", "/unban", "/addplan",
+    "/stats", "/users", "/search", "/payments", "/broadcast", "/confirmbroadcast", "/cancelbroadcast", "/send", "/ban", "/unban", "/addplan",
     "/activateplan", "/deactivateplan", "/plansadmin", "/helpadmin",
     "/videos", "/removevideo", "/grant", "/checkchannel"
   ];
