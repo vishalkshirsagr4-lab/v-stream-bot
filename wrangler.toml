@@ -4,10 +4,10 @@ compatibility_date = "2026-11-01"
 workers_dev = true
 
 [vars]
-BOT_USERNAME = "RelaxVideoStream_bot"
-DEVELOPER_USERNAME = "@BillieElisha_8660"
-DEVELOPER_ID = "8428995007"
-UPI_PAYEE_NAME = "Vishal"
+BOT_USERNAME = "Softsonic_bot"
+DEVELOPER_USERNAME = "@Mikhasa_866"
+DEVELOPER_ID = "7706195761"
+UPI_PAYEE_NAME = "Vishal kshirasagar"
 TRIAL_VIDEO_LIMIT = "5"
 CURRENCY = "INR"
 
