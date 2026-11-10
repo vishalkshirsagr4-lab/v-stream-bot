@@ -140,25 +140,35 @@ export async function handleAdminCommand(message, env, command, args, rawText) {
 
   if (command === "/helpadmin") {
     await sendMessage(env, chatId,
-      "👑 V-Stream owner commands\n\n" +
-      "/setwelcome – set/update welcome image, GIF or video, then text\n" +
+      "👑 V-Stream admin commands\n\n" +
+      "👥 MEMBERS & PAYMENTS\n" +
+      "/users [PAGE] – browse registered members\n" +
+      "/search QUERY – search by name, username or Telegram ID\n" +
+      "/payments [QUERY] – search payment history, UTR or status\n" +
+      "/pendingpayments – list submitted UTRs for review\n" +
+      "/approvepayment ID – approve only after verifying bank credit\n" +
+      "/rejectpayment ID [REASON] – reject a payment request\n" +
+      "\n📣 BROADCAST & MESSAGES\n" +
+      "/broadcast – start a text, GIF, sticker, photo or video broadcast draft\n" +
+      "/confirmbroadcast – queue the previewed broadcast to all eligible members\n" +
+      "/cancelbroadcast – discard the broadcast draft\n" +
+      "/send USER_ID MESSAGE – send a private message to one member\n" +
+      "\n⚙️ BOT & SUBSCRIPTIONS\n" +
+      "/stats – view bot statistics\n" +
+      "/setwelcome – set welcome image, GIF or video, then text\n" +
       "/deletewelcome – remove custom welcome media and text\n" +
       "/cancelwelcome – cancel welcome setup\n" +
-      "/stats – bot statistics\n" +
-      "/broadcast MESSAGE – send announcement to all users\n" +
-      "/send USER_ID MESSAGE – message one user\n" +
-      "/ban USER_ID and /unban USER_ID\n" +
-      "/addplan NAME PRICE DAYS – create a plan\n" +
-      "/plansadmin – list plans\n" +
-      "/activateplan ID and /deactivateplan ID\n" +
-      "/videos – list indexed channel videos\n" +
-      "/removevideo ID – remove a video from the bot catalogue\n" +
+      "/addplan NAME PRICE DAYS – create a subscription plan\n" +
+      "/plansadmin – list subscription plans\n" +
+      "/activateplan ID – activate a plan\n" +
+      "/deactivateplan ID – deactivate a plan\n" +
       "/grant USER_ID DAYS [PLAN_NAME] – grant complimentary access\n" +
-      "/checkchannel – check bot channel permissions\n" +
-      "/pendingpayments – list submitted UTRs\n" +
-      "/approvepayment ID – approve after bank verification\n" +
-      "/rejectpayment ID [REASON] – reject a request\n" +
-      "/myid – show your Telegram ID");
+      "\n🎞 VIDEO CATALOGUE\n" +
+      "/videos – list indexed channel videos\n" +
+      "/removevideo ID – remove a video from the catalogue\n" +
+      "/checkchannel – check channel permissions\n" +
+      "/myid – show your Telegram ID\n\n" +
+      "Tip: Open the command menu (/) to see admin command suggestions.");
     return true;
   }
 
