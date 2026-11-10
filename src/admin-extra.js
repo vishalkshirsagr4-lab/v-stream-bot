@@ -132,7 +132,7 @@ export async function handleAdminExtraCallback(query, env) {
   }
   if (data.startsWith("adm:msg:")) {
     const target = data.slice("adm:msg:".length);
-    if (!/^\\d+$/.test(target)) return true;
+    if (!/^\d+$/.test(target)) return true;
     const exists = await env.DB.prepare("SELECT telegram_id FROM users WHERE telegram_id=?").bind(target).first();
     if (!exists) { await sendMessage(env, chatId, "Member not found."); return true; }
     await env.DB.prepare("INSERT INTO admin_dm_sessions(admin_id,target_user_id) VALUES (?,?) ON CONFLICT(admin_id) DO UPDATE SET target_user_id=excluded.target_user_id,created_at=datetime('now')").bind(adminId, target).run();
@@ -141,7 +141,7 @@ export async function handleAdminExtraCallback(query, env) {
   }
   if (data.startsWith("adm:subcancel:")) {
     const target = data.slice("adm:subcancel:".length);
-    if (!/^\\d+$/.test(target)) return true;
+    if (!/^\d+$/.test(target)) return true;
     const result = await env.DB.prepare("UPDATE subscriptions SET status='cancelled' WHERE telegram_id=? AND status='active' AND expires_at > datetime('now')").bind(target).run();
     await sendMessage(env, chatId, result.meta.changes
       ? "✅ Active subscription cancelled for member " + target + "."
