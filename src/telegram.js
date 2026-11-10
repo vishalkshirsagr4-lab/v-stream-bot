@@ -3,6 +3,7 @@ import { upsertUser, getUser, getActiveSubscription, listPlans, getRandomVideo }
 import { createManualPaymentRequest, submitManualUtr } from "./payments.js";
 import { handleAdminCommand, handleAdminMessage, setChatCommands, isAdmin } from "./admin.js";
 import { handlePaymentReviewCallback } from "./manual-payment-admin.js";
+import { handleAdminExtraCallback } from "./admin-extra.js";
 
 const HELP_TEXT =
   "🎬 V-Stream — Member Commands\n\n" +
@@ -128,6 +129,7 @@ export async function handleMessage(message, env) {
 
 export async function handleCallback(query, env) {
   if (await handlePaymentReviewCallback(query, env)) return;
+  if (await handleAdminExtraCallback(query, env)) { await answerCallbackQuery(env, query.id); return; }
   const chatId = query.message && query.message.chat && query.message.chat.id;
   const userId = query.from && String(query.from.id);
   if (!chatId || !userId) return;
