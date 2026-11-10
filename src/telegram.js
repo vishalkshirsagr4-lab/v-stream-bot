@@ -66,9 +66,15 @@ async function sendWelcome(env, chatId) {
     if (welcomeText.length <= 1024) {
       payload.caption = welcomeText;
       payload.reply_markup = markup.reply_markup;
-      return telegramCall(env, method, payload);
     }
-    await telegramCall(env, method, payload);
+    try {
+      await telegramCall(env, method, payload);
+      return;
+    } catch (error) {
+      // Media file_ids belong to the bot that received them. After a bot-token
+      // change, an old welcome media file_id may be invalid for this bot.
+      console.error("Welcome media could not be sent; falling back to text:", error);
+    }
   }
   return sendMessage(env, chatId, welcomeText, markup);
 }
