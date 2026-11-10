@@ -20,13 +20,16 @@ function trialLimit(env) {
   return Number.isInteger(n) && n > 0 && n <= 20 ? n : 5;
 }
 
-function welcomeMarkup() {
-  return {
-    inline_keyboard: [
-      [{ text: "❓ Help", callback_data: "help" }, { text: "🎁 Trial – 5 Videos", callback_data: "trial" }],
-      [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }]
-    ]
-  };
+function welcomeMarkup(env) {
+  const keyboard = [
+    [{ text: "❓ Help", callback_data: "help" }, { text: "🎁 Trial – 5 Videos", callback_data: "trial" }],
+    [{ text: "💳 Subscription", callback_data: "plans" }, { text: "🎲 Random Video", callback_data: "random" }]
+  ];
+  const developerUsername = String(env.DEVELOPER_USERNAME || "").trim().replace(/^@/, "");
+  if (developerUsername) {
+    keyboard.push([{ text: "👨‍💻 Contact Developer", url: "https://t.me/" + encodeURIComponent(developerUsername) }]);
+  }
+  return { inline_keyboard: keyboard };
 }
 
 function replyKeyboard() {
@@ -48,7 +51,7 @@ async function sendWelcome(env, chatId) {
   const welcomeText = saved && saved.welcome_text
     ? saved.welcome_text
     : "🎬 Welcome to V-Stream!\\n\\nExplore the available videos and choose an option below.";
-  const markup = { reply_markup: welcomeMarkup() };
+  const markup = { reply_markup: welcomeMarkup(env) };
 
   if (saved && saved.media_file_id) {
     const method = saved.media_type === "photo" ? "sendPhoto" : saved.media_type === "animation" ? "sendAnimation" : "sendVideo";
